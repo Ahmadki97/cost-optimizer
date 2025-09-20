@@ -18,8 +18,9 @@ This project provides automated checkers for unused or idle resources like Elast
  * aioboto3 -> ASYNC AWS SDK
  * AWS CLI credentials/profile for authentication
 
- 
+
 🚦 Getting Started:
+
     # Clone the repository
     git clone https://github.com/<your-username>/aws-cost-optimizer.git
     cd aws-cost-optimizer
