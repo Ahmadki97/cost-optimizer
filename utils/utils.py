@@ -1,12 +1,25 @@
 import csv
 import aiofiles
-import aioboto3
+import json
+import boto3
 from io import StringIO
+from logger import logger
 from botocore.exceptions import ClientError
+from botocore.config import Config
 from mypy_boto3_ec2.client import EC2Client
 from pathlib import Path
 
-
+REGION_NAME_MAP = {
+    "us-east-1": "US East (N. Virginia)",
+    "us-east-2": "US East (Ohio)",
+    "us-west-1": "US West (N. California)",
+    "us-west-2": "US West (Oregon)",
+    "ap-south-1": "Asia Pacific (Mumbai)",
+    "ap-northeast-1": "Asia Pacific (Tokyo)",
+    "eu-central-1": "EU (Frankfurt)",
+    "eu-west-1": "EU (Ireland)",
+    # Add more if needed
+}
 
 
 async def get_instance_state(ec2: EC2Client) -> list[dict]:
@@ -32,9 +45,35 @@ async def get_instance_state(ec2: EC2Client) -> list[dict]:
         raise 
 
 
+
+def get_aws_resource_price(service_code: str, filters: list, region: str) -> float:
+    try:
+        client = boto3.client('pricing', region_name='us-east-1', config=Config(retries={'max_attempts': 10, 'mode': 'standard'}))
+        location = REGION_NAME_MAP.get(region, region)
+        pricing_filters = [{'Type': 'TERM_MATCH', 'Field': 'location', 'Value': location}]
+        for f in filters:
+            pricing_filters.append({'Type': 'TERM_MATCH', 'Field': f['Field'], 'Value': f['Value']})
+        resp = client.get_products(ServiceCode=service_code, Filters=pricing_filters, MaxResults=1)
+        if not resp['PriceList']:
+            logger.info(f"❌ No pricing data found for {service_code} in {region} with filters {filters}")
+            raise ValueError(f"No pricing data found for service {service_code} in {region} with filters {filters}")
+        price_item = json.loads(resp['PriceList'][0])
+        terms = price_item['terms']['OnDemand']
+        price_dimensions = next(iter(next(iter(terms.values()))['priceDimensions'].values()))
+        return float(price_dimensions['pricePerUnit']['USD'])
+    except ClientError as err:
+        logger.error(f"Error in utils.get_aws_resource_price() Method: ❌ AWS ClientError: {err}")
+        raise
+    except Exception as err:
+        logger.error(f"❌ Unexpected error: {err}")
+        raise
+        
+
+
+
 async def save_to_csv(data: list[dict], fil_path: str):
     if not data:
-        print("No data to save.")
+        logger.info("utils.save_to_csv() Method: No data to save.")
         return
     path = Path(fil_path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -44,4 +83,4 @@ async def save_to_csv(data: list[dict], fil_path: str):
     writer.writerows(data)
     async with aiofiles.open(path, mode='w') as f:
         await f.write(buffer.getvalue())
-    print(f"✅ Async report saved to {path}")
+    logger.info(f"utils.save_to_csv() Method: ✅ Async report saved to {path}")

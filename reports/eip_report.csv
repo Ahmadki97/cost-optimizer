@@ -1,0 +1,2 @@
+PublicIp,AllocationId,AttachmentType,AttachmentId,InstanceState,Domain,IsIdle,MonthlyCost($)
+3.212.210.38,eipalloc-043f833ed033ff5f8,NAT Gateway,nat-0fe9de0e40e5c9824,Managed by AWS,vpc,False,$0.00

@@ -1,0 +1,2 @@
+id,average_cpu,region,hourly_cost,monthly_savings,instance_type,os
+i-0395afb41451fcf4e,3.652354449382107,us-east-1,0.0116,8.352$,t2.micro,Linux/UNIX

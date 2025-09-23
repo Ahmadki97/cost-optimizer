@@ -1,14 +1,32 @@
 import aioboto3
+import asyncio
 from botocore.exceptions import ClientError
-from utils.utils import get_instance_state, save_to_csv
+from utils.utils import get_instance_state, save_to_csv, get_aws_resource_price
 from dotenv import load_dotenv
+from logger import logger
 import os 
 
 load_dotenv('.env')
 
 
 PROFILE_NAME = os.getenv('AWS_PROFILE')
-async def listEIPs(region: str) -> bool:
+
+
+REGION_NAME_MAP = {
+    "us-east-1": "US East (N. Virginia)",
+    "us-east-2": "US East (Ohio)",
+    "us-west-1": "US West (N. California)",
+    "us-west-2": "US West (Oregon)",
+    "ap-south-1": "Asia Pacific (Mumbai)",
+    "ap-northeast-1": "Asia Pacific (Tokyo)",
+    "eu-central-1": "EU (Frankfurt)",
+    "eu-west-1": "EU (Ireland)",
+    # Add more if needed
+}
+
+
+
+async def list_unattached_eips(region: str) -> None:
     try:
         eip_data = []
         async with aioboto3.Session(profile_name=PROFILE_NAME).client('ec2', region_name=region) as ec2:
@@ -21,6 +39,8 @@ async def listEIPs(region: str) -> bool:
                 for gw_addr in gw.get('NatGatewayAddresses', [])
                 if 'AllocationId' in gw_addr
             }
+            eip_hourly_price = 0.005 
+            eip_monthly_price = round(eip_hourly_price * 720, 4)  # Assuming 720 hours in a month
             # Process each EIP
             for addr in addresses:
                 allocation_id = addr.get('AllocationId', 'N/A')
@@ -47,6 +67,7 @@ async def listEIPs(region: str) -> bool:
                     attachment_type = 'Unattached'
                     attachment_id = 'N/A'
                     state = 'Available/Not attached'
+                
                 eip_data.append({
                     'PublicIp': public_ip,
                     'AllocationId': allocation_id,
@@ -54,14 +75,14 @@ async def listEIPs(region: str) -> bool:
                     'AttachmentId': attachment_id,
                     'InstanceState': state,
                     'Domain': domain,
-                    'IsIdle': attachment_type == 'Unattached'
+                    'IsIdle': attachment_type == 'Unattached',
+                    'MonthlyCost($)': f"${eip_monthly_price}" if attachment_type == 'Unattached' else "$0.00"
                 })
         await save_to_csv((eip_data), f"/mnt/BA82FDFB82FDBC47/Python_Devops/boto3/aws-cost-optimizer/reports/eip_report.csv")
-        print(f"✅ EIP report for region {region} generated.")
-        return True
+        logger.info(f"eip_optimizer() Method: ✅ EIP report for region {region} generated.")
     except ClientError as err:
-        print(f"❌ Error fetching EIP data in region {region}: {err}")
-        return False
+        logger.error(f"eip_optimizer() Method: ❌ Error fetching EIP data in region {region}: {err}")
+        raise
     except Exception as err:
-        print(f"❌ Unexpected error: {err}")
-        return False
+        logger.error(f"eip_optimizer() Method: ❌ Unexpected error: {err}")
+        raise
