@@ -1,14 +1,26 @@
-import boto3
-from optimizer.ec2_checker import find_idle_ec2_instances
-from optimizer.eip_checker import list_unattached_eips
-from optimizer.ebs_checker import list_unused_ebs
-import asyncio
 
-session = boto3.Session(profile_name="devops-personal")  
-
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+from Controllers.get import get_router
+from Controllers.optimizer import optimizer_router
 
 
+asynccontextmanager
+async def lifeSpan(app: FastAPI):
+    print(f"Welcome to AWS Cost Optimizer")
+    yield
 
 
-if __name__ == "__main__":
-    asyncio.run(find_idle_ec2_instances(region="us-east-1", cpu_threshold=5))
+app = FastAPI(title="AWS Cost Optimizer")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(optimizer_router, prefix="/optimizer", tags=["Optimizer"])
+app.include_router(get_router, prefix="", tags=["Get Reports"])

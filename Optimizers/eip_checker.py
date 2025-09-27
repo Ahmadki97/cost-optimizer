@@ -1,8 +1,9 @@
 import aioboto3
-import asyncio
 from botocore.exceptions import ClientError
 from utils.utils import get_instance_state, save_to_csv, get_aws_resource_price
 from dotenv import load_dotenv
+from fastapi import status
+from fastapi.responses import JSONResponse
 from logger import logger
 import os 
 
@@ -78,11 +79,12 @@ async def list_unattached_eips(region: str) -> None:
                     'IsIdle': attachment_type == 'Unattached',
                     'MonthlyCost($)': f"${eip_monthly_price}" if attachment_type == 'Unattached' else "$0.00"
                 })
-        await save_to_csv((eip_data), f"/mnt/BA82FDFB82FDBC47/Python_Devops/boto3/aws-cost-optimizer/reports/eip_report.csv")
+        await save_to_csv((eip_data), f"/mnt/BA82FDFB82FDBC47/Python_Devops/boto3/aws-cost-optimizer/reports/eip_report_{region}.csv")
         logger.info(f"eip_optimizer() Method: ✅ EIP report for region {region} generated.")
+        return JSONResponse(content={"Message": f"EIP report for region {region} generated."}, status_code=status.HTTP_200_OK)
     except ClientError as err:
         logger.error(f"eip_optimizer() Method: ❌ Error fetching EIP data in region {region}: {err}")
-        raise
+        return JSONResponse(content={"Error": f"AWS ClientError: {err}"}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
     except Exception as err:
         logger.error(f"eip_optimizer() Method: ❌ Unexpected error: {err}")
-        raise
+        return JSONResponse(content={"Error": f"Unexpected error: {err}"}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)

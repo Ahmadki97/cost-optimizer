@@ -1,2 +1,0 @@
-VolumeId,Size,State,VolumeType,AvailabilityZone,IsIdle
-vol-0c341223a33f5ad1b,6,available,gp2,us-east-1a,True

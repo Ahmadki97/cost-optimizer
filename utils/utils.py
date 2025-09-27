@@ -2,12 +2,15 @@ import csv
 import aiofiles
 import json
 import boto3
+import datetime
+import pandas as pd
 from io import StringIO
 from logger import logger
 from botocore.exceptions import ClientError
 from botocore.config import Config
 from mypy_boto3_ec2.client import EC2Client
 from pathlib import Path
+
 
 REGION_NAME_MAP = {
     "us-east-1": "US East (N. Virginia)",
@@ -20,6 +23,33 @@ REGION_NAME_MAP = {
     "eu-west-1": "EU (Ireland)",
     # Add more if needed
 }
+
+
+REPORTS_DIR = Path('reports')
+
+
+
+
+async def get_report_summary():
+    try:
+        summary = {
+            "ec2": 0,
+            "eip": 0,
+            "ebs": 0
+        }
+        if (REPORTS_DIR / "idle_ec2_report.csv").exists():
+            df = pd.read_csv(REPORTS_DIR / "idle_ec2_report.csv")
+            summary['ec2'] = len(df)
+        if (REPORTS_DIR / "eip_report.csv").exists():
+            df = pd.read_csv(REPORTS_DIR / "eip_report.csv")
+            summary['eip'] = len(df)
+        if (REPORTS_DIR / "unused_ebs.csv").exists():
+            df = pd.read_csv(REPORTS_DIR / "unused_ebs.csv")
+            summary['ebs'] = len(df)
+        return summary
+    except Exception as err:
+        logger.error(f"❌ Unexpected error in get_report_summary() Method: {err}")
+        raise
 
 
 async def get_instance_state(ec2: EC2Client) -> list[dict]:
@@ -84,3 +114,35 @@ async def save_to_csv(data: list[dict], fil_path: str):
     async with aiofiles.open(path, mode='w') as f:
         await f.write(buffer.getvalue())
     logger.info(f"utils.save_to_csv() Method: ✅ Async report saved to {path}")
+
+
+
+
+
+async def gat_daily_cost(region: str):
+    try:
+        client = boto3.client('ce', region_name='us-east-1')
+        end_date = datetime.datetime.utcnow().date()
+        start_date = end_date - datetime.timedelta(days=7)
+        response = client.get_cost_and_usage(
+            TimePeriod={
+                "start": start_date.strftime('%Y-%m-%d'),
+                "end": end_date.strftime('%Y-%m-%d')
+            },
+            Granularity='DAILY',
+            Metrics=['UnblendedCost'],
+        )
+        data = [
+            {
+                "date": item['TimePeriod']['Start'],
+                "amount": float(item['Total']['UnblendedCost']['Amount']),
+                "region": region,
+                "currency": item['Total']['UnblendedCost']['Unit']
+            }
+            for item in response['ResultsByTime']
+        ]
+        logger.info(f"utils.gat_daily_cost() Method: ✅ Daily cost data fetched for region {region}")
+        return data
+    except Exception as err:
+        logger.error(f"❌ Unexpected error in gat_daily_cost() Method: {err}")
+        raise

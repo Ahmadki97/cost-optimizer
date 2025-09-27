@@ -1,0 +1,2 @@
+VolumeId,Size(GB),VolumeType,Region,MonthlyCost($)
+vol-0c341223a33f5ad1b,6,gp2,us-east-1,$0.6

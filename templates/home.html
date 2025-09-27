@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AWS Optimizer Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-blue-700 to-indigo-800 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto py-6 px-4 flex flex-col sm:flex-row items-center justify-between">
+            <h1 class="text-3xl font-extrabold tracking-wide">⚡ AWS Optimizer Dashboard</h1>
+        </div>
+    </header>
+
+    <!-- Info Line -->
+    <div class="bg-yellow-100 text-yellow-800 text-center py-3 text-sm shadow-sm">
+        ⚠️ These numbers represent <strong>potentially unused AWS resources</strong> that may help reduce costs.
+    </div>
+
+    <!-- Dashboard Container -->
+    <main class="flex-grow max-w-7xl mx-auto w-full p-6 space-y-8">
+
+        <!-- 🔢 Summary Cards -->
+        <section>
+            <h2 class="text-xl font-bold mb-4 text-gray-700">💡 Potential Cost-Saving Resources</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div class="bg-white shadow-md rounded-xl p-6 text-center hover:shadow-lg transition">
+                    <h3 class="text-4xl font-extrabold text-blue-600">{{ summary.ec2 }}</h3>
+                    <p class="text-gray-600 mt-2">Idle EC2 Instances</p>
+                </div>
+                <div class="bg-white shadow-md rounded-xl p-6 text-center hover:shadow-lg transition">
+                    <h3 class="text-4xl font-extrabold text-green-600">{{ summary.ebs }}</h3>
+                    <p class="text-gray-600 mt-2">Unused EBS Volumes</p>
+                </div>
+                <div class="bg-white shadow-md rounded-xl p-6 text-center hover:shadow-lg transition">
+                    <h3 class="text-4xl font-extrabold text-red-600">{{ summary.eip }}</h3>
+                    <p class="text-gray-600 mt-2">Unattached EIPs</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 🔄 Refresh Section -->
+        <section class="bg-white p-6 rounded-xl shadow-md">
+            <h2 class="text-xl font-bold mb-4 text-gray-700">🔄 Refresh Reports</h2>
+            <div class="grid sm:grid-cols-3 gap-4 items-center">
+                <input id="region-input" type="text"
+                       placeholder="AWS Region (e.g. us-east-1)"
+                       class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500">
+                <input id="cpu-threshold-input" type="number"
+                       placeholder="CPU Threshold (%)"
+                       class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500">
+                <button onclick="refreshReports()"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow-md transition">
+                    🔁 Refresh
+                </button>
+            </div>
+            <p id="refresh-message" class="text-green-600 font-semibold mt-3 hidden"></p>
+        </section>
+
+        <!-- 📊 Reports Table -->
+        <section class="bg-white p-6 rounded-xl shadow-md">
+            <h2 class="text-xl font-bold mb-4 text-gray-700">📂 Available CSV Reports</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full table-auto border-collapse">
+                    <thead>
+                        <tr class="bg-gray-200 text-gray-700 uppercase text-sm">
+                            <th class="py-3 px-6 text-left">Report Name</th>
+                            <th class="py-3 px-6 text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for report in reports %}
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="py-3 px-6 text-gray-800 font-medium">{{ report }}</td>
+                            <td class="py-3 px-6 text-center">
+                                <a href="/reports/{{ report }}" target="_blank"
+                                   class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg shadow transition">
+                                    View Report
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="2" class="py-4 text-center text-gray-500">
+                                No reports available
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-gray-200 text-gray-700 py-4 text-center text-sm">
+        © {{ year or "2025" }} AWS Optimizer Dashboard By ENG AhmadKi
+    </footer>
+
+    <script>
+        async function refreshReports() {
+            const region = document.getElementById("region-input").value.trim();
+            const cpuThreshold = document.getElementById("cpu-threshold-input").value.trim();
+            const msg = document.getElementById("refresh-message");
+
+            if (!region || !cpuThreshold) {
+                msg.textContent = "⚠️ Please enter both region and CPU threshold!";
+                msg.classList.remove("hidden", "text-green-600");
+                msg.classList.add("text-red-600");
+                return;
+            }
+
+            try {
+                const response = await axios.post("/refresh", {
+                    region: region,
+                    cpu_threshold: parseInt(cpuThreshold)
+                });
+
+                msg.textContent = "✅ " + response.data.Message;
+                msg.classList.remove("hidden", "text-red-600");
+                msg.classList.add("text-green-600");
+
+                // Update last region display
+                document.getElementById("last-region").textContent = region;
+
+                setTimeout(() => window.location.reload(), 1500);
+            } catch (err) {
+                msg.textContent = "❌ Error refreshing reports.";
+                msg.classList.remove("hidden", "text-green-600");
+                msg.classList.add("text-red-600");
+            }
+        }
+    </script>
+</body>
+</html>

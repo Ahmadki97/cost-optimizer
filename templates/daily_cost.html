@@ -1,0 +1,38 @@
+<div class="bg-white p-4 rounded shadow-md">
+  <h2 class="text-xl font-bold mb-2">AWS Daily Cost (Last 7 Days)</h2>
+  <canvas id="costChart"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+async function loadCostData() {
+    const res = await fetch("/api/cost/daily");
+    const json = await res.json();
+    const labels = json.data.map(x => x.date);
+    const amounts = json.data.map(x => parseFloat(x.amount));
+    const currency = json.data[0]?.currency || "USD";
+
+    new Chart(document.getElementById('costChart'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: `Cost (${currency})`,
+                data: amounts,
+                fill: false,
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+loadCostData();
+</script>

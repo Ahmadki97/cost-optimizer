@@ -6,6 +6,8 @@ from logger import logger
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from utils.utils import get_aws_resource_price, save_to_csv
+from fastapi import status
+from fastapi.responses import JSONResponse
 
 
 load_dotenv('.env')
@@ -91,9 +93,12 @@ async def find_idle_ec2_instances(region, cpu_threshold=5):
                                 'instance_type': instance['InstanceType'],
                                 'os': os_type
                             })
-                await save_to_csv(idle_instances, f"/mnt/BA82FDFB82FDBC47/Python_Devops/boto3/aws-cost-optimizer/reports/idle_ec2_report.csv")
+                await save_to_csv(idle_instances, f"/mnt/BA82FDFB82FDBC47/Python_Devops/boto3/aws-cost-optimizer/reports/idle_ec2_report_{region}.csv")
                 logger.info(f"find_idle_ec2_instances() Method: ✅ Idle EC2 report for region {region} generated.")
+                return JSONResponse(content={"Message": f"Idle EC2 report for region {region} generated."}, status_code=status.HTTP_200_OK)
     except ClientError as err:
         logger.error(f"Error in find_idle_ec2_instances() Method: ❌ AWS ClientError: {err}")
+        return JSONResponse(content={"Error": f"AWS ClientError: {err}"}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
     except Exception as err:
-        logger.error(f"Error in find_idle_ec2_instances() Method: ❌ Unexpected error: {err}")  
+        logger.error(f"Error in find_idle_ec2_instances() Method: ❌ Unexpected error: {err}")
+        return JSONResponse(content={"Error": f"Unexpected error: {err}"}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -1,7 +1,9 @@
 import aioboto3
 from botocore.exceptions import ClientError
-from utils.utils import get_instance_state, save_to_csv, get_aws_resource_price
+from utils.utils import save_to_csv, get_aws_resource_price
 from dotenv import load_dotenv
+from fastapi import status
+from fastapi.responses import JSONResponse
 from logger import logger
 import asyncio
 import datetime
@@ -53,12 +55,12 @@ async def list_unused_ebs(region: str) -> bool:
                             'Region': region,
                             'MonthlyCost($)': f"${monthly_cost}"
                         })
-                        await save_to_csv(data=report, fil_path='/mnt/BA82FDFB82FDBC47/Python_Devops/boto3/aws-cost-optimizer/reports/unused_ebs.csv')
+                        await save_to_csv(data=report, fil_path=f"/mnt/BA82FDFB82FDBC47/Python_Devops/boto3/aws-cost-optimizer/reports/unused_ebs_{region}.csv")
         logger.info(f"✅ Unused EBS report generated and saved to reports/unused_ebs.csv")
-        return True
+        return JSONResponse(content={"Message": f"Unused EBS report for region {region} generated."}, status_code=status.HTTP_200_OK)
     except ClientError as err:
         logger.error(f"❌ AWS ClientError: {err}")
-        return False
+        return JSONResponse(content={"Error": f"AWS ClientError: {err}"}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
     except Exception as err:
         logger.error(f"❌ Unexpected error: {err}")
-        return False
+        return JSONResponse(content={"Error": f"Unexpected error: {err}"}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
